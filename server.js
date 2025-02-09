@@ -3,6 +3,7 @@ import { renderToString } from "@vue/server-renderer";
 import { createServer as createViteServer } from "vite";
 import puppeteer from "puppeteer";
 import { createApp } from "vue";
+import { createCanvas } from "canvas";
 
 const app = express();
 const port = 3000;
@@ -14,6 +15,12 @@ const ViewportDefaults = {
   padding: 0,
   timeout: 500,
   backgroundColor: "transparent",
+};
+
+const RenderingDefaults = {
+  errorTimeout: 3000,
+  errorImageMinWidth: 80,
+  errorImageMinHeight: 20,
 };
 
 class BrowserManager {
@@ -171,6 +178,27 @@ async function sharedHandler({
   return { fullHtml, type, viewport: finalViewport };
 }
 
+async function createErrorImage(width, height) {
+  const finalWidth = Math.max(width, RenderingDefaults.errorImageMinWidth);
+  const finalHeight = Math.max(height, RenderingDefaults.errorImageMinHeight);
+
+  const canvas = createCanvas(finalWidth, finalHeight);
+  const ctx = canvas.getContext("2d");
+
+  // Clear background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, finalWidth, finalHeight);
+
+  // Add error text
+  ctx.font = "bold 14px Arial";
+  ctx.fillStyle = "#ff0000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Error when generating image", finalWidth / 2, finalHeight / 2);
+
+  return canvas.toBuffer("image/png");
+}
+
 async function renderHandler(req, res) {
   try {
     const requestData =
@@ -182,44 +210,69 @@ async function renderHandler(req, res) {
     }
     if (type === "png") {
       console.log("Starting PNG screenshot process...");
-      const screenshot = await browserManager.addToQueue(async (page) => {
-        console.log("Setting viewport...");
-        await page.setViewport({
-          width: viewport.width,
-          height: 10000,
-        });
-        console.log("Setting page content...");
-        await page.setContent(fullHtml, {
-          waitUntil: ["load", "networkidle0"],
-        });
+      try {
+        const screenshot = await Promise.race([
+          browserManager.addToQueue(async (page) => {
+            console.log("Setting viewport...");
+            await page.setViewport({
+              width: viewport.width,
+              height: 10000,
+            });
+            console.log("Setting page content...");
+            await page.setContent(fullHtml, {
+              waitUntil: ["load", "networkidle0"],
+            });
 
-        await page.waitForTimeout(viewport.timeout);
+            console.log(
+              `Waiting for page loading timeout (${
+                viewport.timeout / 1000
+              }s)...`
+            );
+            await page.waitForTimeout(viewport.timeout);
+            await console.log("Page assumed to be loaded after timeout...");
 
-        // Get the actual height of the viewport content
-        const viewportElement = await page.$("#main-screenshot-viewport");
-        const boundingBox = await viewportElement.boundingBox();
+            // Get the actual height of the viewport content
+            const viewportElement = await page.$("#main-screenshot-viewport");
+            const boundingBox = await viewportElement.boundingBox();
 
-        // Reset viewport with actual height
-        await page.setViewport({
-          width: viewport.width,
-          height: Math.ceil(boundingBox.height),
-        });
+            // Reset viewport with actual height
+            await page.setViewport({
+              width: viewport.width,
+              height: Math.ceil(boundingBox.height),
+            });
 
-        console.log("Taking screenshot...");
-        return page.screenshot({
-          type: "png",
-          clip: {
-            x: boundingBox.x,
-            y: boundingBox.y,
-            width: boundingBox.width,
-            height: boundingBox.height,
-          },
-          omitBackground: viewport.backgroundColor === "transparent",
-        });
-      });
-      console.log("Screenshot captured, sending response...");
-      res.setHeader("Content-Type", "image/png");
-      return res.send(screenshot);
+            console.log("Taking screenshot...");
+            return page.screenshot({
+              type: "png",
+              clip: {
+                x: boundingBox.x,
+                y: boundingBox.y,
+                width: boundingBox.width,
+                height: boundingBox.height,
+              },
+              omitBackground: viewport.backgroundColor === "transparent",
+            });
+          }),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error("Rendering timeout")),
+              RenderingDefaults.errorTimeout + viewport.timeout
+            )
+          ),
+        ]);
+
+        console.log("Screenshot captured, sending response...");
+        res.setHeader("Content-Type", "image/png");
+        return res.send(screenshot);
+      } catch (error) {
+        console.error("Screenshot failed:", error);
+        const errorImage = await createErrorImage(
+          viewport.width,
+          viewport.height
+        );
+        res.setHeader("Content-Type", "image/png");
+        return res.send(errorImage);
+      }
     }
     throw new Error(`Unsupported render type: ${type}`);
   } catch (error) {
