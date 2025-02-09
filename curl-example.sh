@@ -10,4 +10,4 @@ curl -X POST \
     "browserWidth": 480,
     "browserHeight": 2000
   }' \
-  --output screenshot.png
+  --output screenshot.png && qlmanage -p screenshot.png
