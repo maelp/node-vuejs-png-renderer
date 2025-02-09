@@ -9,10 +9,10 @@ const port = 3000;
 app.use(express.json());
 
 const ViewportDefaults = {
-  width: 800,
+  width: 600,
   height: 0,
   padding: 0,
-  timeout: 1000,
+  timeout: 500,
   backgroundColor: "transparent",
 };
 

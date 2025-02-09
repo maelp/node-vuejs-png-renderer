@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div id="view-content" class="w-full inline-block">
+    <div class="w-full inline-block">
       <!-- This wrapper ensures tight bounds -->
       <Card :title="`Welcome ${username}`">
         <img src="/images/vite.svg" alt="Vue logo (from public)" class="logo" />

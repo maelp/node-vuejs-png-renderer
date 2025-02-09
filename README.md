@@ -3,7 +3,7 @@ Example of a small server which allows to render a VueJS widget as a PNG, which 
 ```sh
 pnpm dev # run the server
 # then:
-open "http://localhost:3000/render?component=MyView&type=www&viewport-padding=10"
+open "http://localhost:3000/render?component=MyView&type=www&viewport-padding=10&viewport-background=transparent"
 # or:
 ./curl-example.sh
 ```
