@@ -80,5 +80,5 @@ defineProps({
 </script>
 ```
 
-and this is the sample render (with some padding)
+and this is the sample PNG render (with some padding)
 ![screenshot](https://github.com/user-attachments/assets/8081184c-cf46-4f0c-a39e-a9317cd725cb)
