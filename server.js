@@ -12,7 +12,7 @@ const ViewportDefaults = {
   width: 800,
   height: 0,
   padding: 0,
-  timeout: 1500,
+  timeout: 1000,
 };
 
 class BrowserManager {
@@ -154,7 +154,11 @@ async function sharedHandler({
   const fullHtml = `
     <!DOCTYPE html>
     <html>
-      <head><title>${component}</title><script src="https://cdn.tailwindcss.com"></script></head>
+      <head>
+        <title>${component}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <base href="http://localhost:${port}/" />
+      </head>
       <body><div>${await renderToString(app)}</div></body>
     </html>
   `;
@@ -180,9 +184,9 @@ async function renderHandler(req, res) {
           height: 1000, // Set initial height
         });
         console.log("Setting page content...");
-        await page.setContent(fullHtml);
-        console.log("Waiting for network idle...");
-        await page.waitForNetworkIdle({ timeout: viewport.timeout });
+        await page.setContent(fullHtml, {
+          waitUntil: ["load", "networkidle0"],
+        });
 
         // Get the actual height of the viewport content
         const viewportElement = await page.$("#main-screenshot-viewport");
