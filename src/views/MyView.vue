@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-gray-100">
+  <div>
     <div id="view-content" class="w-full inline-block">
       <!-- This wrapper ensures tight bounds -->
       <Card :title="`Welcome ${username}`">

@@ -15,7 +15,8 @@ curl -X POST 'http://localhost:3000/render' \
     "viewport": {
       "width": 600,
       "padding": 10,
-      "timeout": 5000
+      "timeout": 1000,
+      "backgroundColor": "black"
     }
   }' \
   --output screenshot.png

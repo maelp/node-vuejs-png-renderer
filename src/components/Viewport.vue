@@ -8,6 +8,7 @@
       position: 'relative',
       overflow: 'hidden',
       boxSizing: 'border-box',
+      backgroundColor,
     }"
   >
     <slot></slot>
@@ -27,6 +28,10 @@ defineProps({
   padding: {
     type: Number,
     default: 0,
+  },
+  backgroundColor: {
+    type: String,
+    default: "transparent",
   },
 });
 </script>

@@ -13,6 +13,7 @@ const ViewportDefaults = {
   height: 0,
   padding: 0,
   timeout: 1000,
+  backgroundColor: "transparent",
 };
 
 class BrowserManager {
@@ -102,6 +103,7 @@ function getHandler(req) {
       height: req.query["viewport-height"],
       padding: req.query["viewport-padding"],
       timeout: req.query["viewport-timeout"],
+      backgroundColor: req.query["viewport-backgroundColor"],
     },
   };
 }
@@ -126,6 +128,8 @@ async function sharedHandler({
     height: parseInt(viewport.height) || ViewportDefaults.height,
     padding: parseInt(viewport.padding) || ViewportDefaults.padding,
     timeout: parseFloat(viewport.timeout) || ViewportDefaults.timeout,
+    backgroundColor:
+      viewport.backgroundColor || ViewportDefaults.backgroundColor,
   };
 
   const componentPath = `/src/views/${component}.vue`;
@@ -143,6 +147,7 @@ async function sharedHandler({
         :width="viewportProps.width"
         :height="viewportProps.height"
         :padding="viewportProps.padding"
+        :backgroundColor="viewportProps.backgroundColor"
       >
         <Component v-bind="componentProps" />
       </Viewport>
@@ -181,12 +186,14 @@ async function renderHandler(req, res) {
         console.log("Setting viewport...");
         await page.setViewport({
           width: viewport.width,
-          height: 1000, // Set initial height
+          height: 10000,
         });
         console.log("Setting page content...");
         await page.setContent(fullHtml, {
           waitUntil: ["load", "networkidle0"],
         });
+
+        await page.waitForTimeout(viewport.timeout);
 
         // Get the actual height of the viewport content
         const viewportElement = await page.$("#main-screenshot-viewport");
@@ -207,6 +214,7 @@ async function renderHandler(req, res) {
             width: boundingBox.width,
             height: boundingBox.height,
           },
+          omitBackground: viewport.backgroundColor === "transparent",
         });
       });
       console.log("Screenshot captured, sending response...");
