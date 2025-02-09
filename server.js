@@ -151,6 +151,8 @@ app.get("/render", async (req, res) => {
     const view = {
       width: parseInt(req.query["view-width"] || 800),
       height: parseInt(req.query["view-height"] || 600),
+      padding: parseInt(req.query["view-padding"] || 0),
+      timeout: parseInt(req.query["view-timeout"] || 300),
     };
 
     const { fullHtml } = await handleRender(component, type, props, view);
@@ -162,14 +164,37 @@ app.get("/render", async (req, res) => {
 
     if (type === "png") {
       const screenshot = await browserManager.addToQueue(async (page) => {
-        await page.setViewport(view);
+        await page.setViewport({
+          width: Math.max(view.width, 800),
+          height: Math.max(view.height, 600),
+        });
         await page.setContent(fullHtml);
         await page.waitForNetworkIdle();
-        await page.waitForTimeout(100);
+
+        // Wait for any animations to complete (adjust timeout as needed)
+        await page.waitForTimeout(300);
+
+        // Wait for any dynamic content to stabilize
+        await page.waitForFunction(() => {
+          const app = document.getElementById("app");
+          const rect = app.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+
+        const dimensions = await page.evaluate(() => {
+          const app = document.getElementById("app");
+          const rect = app.getBoundingClientRect();
+          return {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          };
+        });
 
         return page.screenshot({
           type: "png",
-          clip: { x: 0, y: 0, ...view },
+          clip: dimensions,
         });
       });
 
@@ -201,14 +226,37 @@ app.post("/render", async (req, res) => {
 
     if (type === "png") {
       const screenshot = await browserManager.addToQueue(async (page) => {
-        await page.setViewport(view);
+        await page.setViewport({
+          width: Math.max(view.width, 800),
+          height: Math.max(view.height, 600),
+        });
         await page.setContent(fullHtml);
         await page.waitForNetworkIdle();
-        await page.waitForTimeout(100);
+
+        // Wait for any animations to complete (adjust timeout as needed)
+        await page.waitForTimeout(300);
+
+        // Wait for any dynamic content to stabilize
+        await page.waitForFunction(() => {
+          const app = document.getElementById("app");
+          const rect = app.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+
+        const dimensions = await page.evaluate(() => {
+          const app = document.getElementById("app");
+          const rect = app.getBoundingClientRect();
+          return {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          };
+        });
 
         return page.screenshot({
           type: "png",
-          clip: { x: 0, y: 0, ...view },
+          clip: dimensions,
         });
       });
 
