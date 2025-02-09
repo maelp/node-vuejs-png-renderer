@@ -3,12 +3,19 @@ import { createSSRApp } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { createServer as createViteServer } from "vite";
 import puppeteer from "puppeteer";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const app = express();
 const port = 3000;
 
 // Add JSON body parser
 app.use(express.json());
+
+// Get the equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Puppeteer manager class
 class BrowserManager {
@@ -164,6 +171,9 @@ app.post("/my-view/screenshot", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Serve files from the public directory at the root URL path
+app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
