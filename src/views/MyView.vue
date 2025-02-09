@@ -3,7 +3,7 @@
     <div id="view-content" class="w-full inline-block">
       <!-- This wrapper ensures tight bounds -->
       <Card :title="`Welcome ${username}`">
-        <img src="/vite.svg" alt="Vue logo (from public)" class="logo" />
+        <img src="/images/vite.svg" alt="Vue logo (from public)" class="logo" />
 
         <p class="mb-4">You have {{ itemCount }} items in your cart</p>
         <Button>Click me!</Button>

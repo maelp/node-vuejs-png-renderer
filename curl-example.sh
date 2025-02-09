@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+rm -f screenshot.png
 curl -X POST \
   http://localhost:3000/my-view/screenshot \
   -H "Content-Type: application/json" \
