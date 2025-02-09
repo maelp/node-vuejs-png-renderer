@@ -3,6 +3,7 @@ import { createSSRApp } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { createServer as createViteServer } from "vite";
 import puppeteer from "puppeteer";
+import { createApp } from "vue";
 
 const app = express();
 const port = 3000;
@@ -93,75 +94,80 @@ const template = `
 </html>
 `;
 
-async function renderView(props = {}) {
-  const MyView = await vite.ssrLoadModule("/src/views/MyView.vue");
-  const vueApp = createSSRApp(MyView.default, props);
-  const html = await renderToString(vueApp);
-  return template.replace("<!--vue-ssr-outlet-->", html);
-}
-
-app.get("/my-view", async (req, res) => {
+app.post("/render", async (req, res) => {
   try {
-    const props = {
-      username: req.query.username || "default",
-      itemCount: parseInt(req.query.itemCount) || 0,
-    };
-    const html = await renderView(props);
-    res.setHeader("Content-Type", "text/html");
-    res.send(html);
+    const { component = "MyView", type = "www" } = req.query;
+    const { props = {}, view = { width: 800, height: 600 } } = req.body;
+
+    // Dynamically import the component
+    const componentPath = `/src/views/${component}.vue`;
+    const { default: Component } = await vite.ssrLoadModule(componentPath);
+
+    // Create a Vue app instance
+    const app = createApp(Component, props);
+
+    // Render the app to HTML
+    const html = await renderToString(app);
+
+    // Wrap in full HTML document
+    const fullHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${component}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            body { margin: 0; }
+            #app { width: ${view.width}px; height: ${view.height}px; }
+          </style>
+        </head>
+        <body>
+          <div id="app">${html}</div>
+        </body>
+      </html>
+    `;
+
+    if (type === "www") {
+      res.setHeader("Content-Type", "text/html");
+      return res.send(fullHtml);
+    }
+
+    if (type === "png") {
+      const screenshot = await browserManager.addToQueue(async (page) => {
+        // Set browser viewport
+        await page.setViewport({
+          width: view.width,
+          height: view.height,
+        });
+
+        await page.setContent(fullHtml);
+
+        // Wait for network to be idle and a small delay for animations
+        await page.waitForNetworkIdle();
+        await page.waitForTimeout(100);
+
+        return page.screenshot({
+          type: "png",
+          clip: {
+            x: 0,
+            y: 0,
+            width: view.width,
+            height: view.height,
+          },
+        });
+      });
+
+      res.setHeader("Content-Type", "image/png");
+      return res.send(screenshot);
+    }
+
+    throw new Error(`Unsupported render type: ${type}`);
   } catch (error) {
-    vite.ssrFixStacktrace(error);
-    console.error(error);
-    res.status(500).send(error.stack);
-  }
-});
-
-app.post("/my-view/screenshot", async (req, res) => {
-  try {
-    const {
-      props = {},
-      browserWidth = 600, // Default browser width
-      browserHeight = 2000, // Tall default to accommodate most content
-    } = req.body;
-
-    const html = await renderView(props);
-
-    const screenshot = await browserManager.addToQueue(async (page) => {
-      // Set browser viewport
-      await page.setViewport({
-        width: browserWidth,
-        height: browserHeight,
-      });
-
-      await page.setContent(html);
-      await page.waitForTimeout(1000);
-
-      // Find the content wrapper and get its actual dimensions
-      const element = await page.$("#view-content");
-      const box = await element.boundingBox();
-
-      if (!box) {
-        throw new Error("Could not detect component boundaries");
-      }
-
-      // Take screenshot of just the content area
-      return page.screenshot({
-        type: "png",
-        clip: {
-          x: box.x,
-          y: box.y,
-          width: box.width,
-          height: box.height,
-        },
-        omitBackground: true,
-      });
+    console.error("Render error:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
-
-    res.setHeader("Content-Type", "image/png");
-    res.send(screenshot);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
   }
 });
 
