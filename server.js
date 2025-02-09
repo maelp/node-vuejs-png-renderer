@@ -94,38 +94,66 @@ const template = `
 </html>
 `;
 
-app.post("/render", async (req, res) => {
+// Add this utility function before the route handlers
+function parseQueryStringProps(query) {
+  const props = {};
+  for (const [key, value] of Object.entries(query)) {
+    if (key.startsWith("props-")) {
+      const propKey = key.replace("props-", "");
+      // Try to parse as JSON if it's a complex value
+      try {
+        props[propKey] = JSON.parse(value);
+      } catch {
+        props[propKey] = value;
+      }
+    }
+  }
+  return props;
+}
+
+async function handleRender(component, type, props, view) {
+  // Dynamically import the component
+  const componentPath = `/src/views/${component}.vue`;
+  const { default: Component } = await vite.ssrLoadModule(componentPath);
+
+  // Create a Vue app instance
+  const app = createApp(Component, props);
+
+  // Render the app to HTML
+  const html = await renderToString(app);
+
+  // Wrap in full HTML document
+  const fullHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>${component}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          body { margin: 0; }
+          #app { width: ${view.width}px; height: ${view.height}px; }
+        </style>
+      </head>
+      <body>
+        <div id="app">${html}</div>
+      </body>
+    </html>
+  `;
+
+  return { fullHtml };
+}
+
+// Replace the existing POST route with these two routes
+app.get("/render", async (req, res) => {
   try {
     const { component = "MyView", type = "www" } = req.query;
-    const { props = {}, view = { width: 800, height: 600 } } = req.body;
+    const props = parseQueryStringProps(req.query);
+    const view = {
+      width: parseInt(req.query["view-width"] || 800),
+      height: parseInt(req.query["view-height"] || 600),
+    };
 
-    // Dynamically import the component
-    const componentPath = `/src/views/${component}.vue`;
-    const { default: Component } = await vite.ssrLoadModule(componentPath);
-
-    // Create a Vue app instance
-    const app = createApp(Component, props);
-
-    // Render the app to HTML
-    const html = await renderToString(app);
-
-    // Wrap in full HTML document
-    const fullHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${component}</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <style>
-            body { margin: 0; }
-            #app { width: ${view.width}px; height: ${view.height}px; }
-          </style>
-        </head>
-        <body>
-          <div id="app">${html}</div>
-        </body>
-      </html>
-    `;
+    const { fullHtml } = await handleRender(component, type, props, view);
 
     if (type === "www") {
       res.setHeader("Content-Type", "text/html");
@@ -134,26 +162,53 @@ app.post("/render", async (req, res) => {
 
     if (type === "png") {
       const screenshot = await browserManager.addToQueue(async (page) => {
-        // Set browser viewport
-        await page.setViewport({
-          width: view.width,
-          height: view.height,
-        });
-
+        await page.setViewport(view);
         await page.setContent(fullHtml);
-
-        // Wait for network to be idle and a small delay for animations
         await page.waitForNetworkIdle();
         await page.waitForTimeout(100);
 
         return page.screenshot({
           type: "png",
-          clip: {
-            x: 0,
-            y: 0,
-            width: view.width,
-            height: view.height,
-          },
+          clip: { x: 0, y: 0, ...view },
+        });
+      });
+
+      res.setHeader("Content-Type", "image/png");
+      return res.send(screenshot);
+    }
+
+    throw new Error(`Unsupported render type: ${type}`);
+  } catch (error) {
+    console.error("Render error:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
+
+app.post("/render", async (req, res) => {
+  try {
+    const { component = "MyView", type = "www" } = req.query;
+    const { props = {}, view = { width: 800, height: 600 } } = req.body;
+
+    const { fullHtml } = await handleRender(component, type, props, view);
+
+    if (type === "www") {
+      res.setHeader("Content-Type", "text/html");
+      return res.send(fullHtml);
+    }
+
+    if (type === "png") {
+      const screenshot = await browserManager.addToQueue(async (page) => {
+        await page.setViewport(view);
+        await page.setContent(fullHtml);
+        await page.waitForNetworkIdle();
+        await page.waitForTimeout(100);
+
+        return page.screenshot({
+          type: "png",
+          clip: { x: 0, y: 0, ...view },
         });
       });
 
