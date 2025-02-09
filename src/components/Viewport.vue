@@ -3,7 +3,7 @@
     id="main-screenshot-viewport"
     :style="{
       width: `${width}px`,
-      ...(height > 0 ? { height: `${height}px` } : {}),
+      height: height > 0 ? `${height}px` : 'auto',
       padding: `${padding}px`,
       position: 'relative',
       overflow: 'hidden',

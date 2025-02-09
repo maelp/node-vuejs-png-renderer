@@ -13,8 +13,7 @@ curl -X POST 'http://localhost:3000/render' \
       "itemCount": 5
     },
     "viewport": {
-      "width": 800,
-      "height": 500,
+      "width": 600,
       "padding": 10,
       "timeout": 5000
     }

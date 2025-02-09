@@ -172,15 +172,40 @@ async function renderHandler(req, res) {
       return res.send(fullHtml);
     }
     if (type === "png") {
+      console.log("Starting PNG screenshot process...");
       const screenshot = await browserManager.addToQueue(async (page) => {
+        console.log("Setting viewport...");
         await page.setViewport({
           width: viewport.width,
-          height: viewport.height,
+          height: 1000, // Set initial height
         });
+        console.log("Setting page content...");
         await page.setContent(fullHtml);
+        console.log("Waiting for network idle...");
         await page.waitForNetworkIdle({ timeout: viewport.timeout });
-        return page.screenshot({ type: "png" });
+
+        // Get the actual height of the viewport content
+        const viewportElement = await page.$("#main-screenshot-viewport");
+        const boundingBox = await viewportElement.boundingBox();
+
+        // Reset viewport with actual height
+        await page.setViewport({
+          width: viewport.width,
+          height: Math.ceil(boundingBox.height),
+        });
+
+        console.log("Taking screenshot...");
+        return page.screenshot({
+          type: "png",
+          clip: {
+            x: boundingBox.x,
+            y: boundingBox.y,
+            width: boundingBox.width,
+            height: boundingBox.height,
+          },
+        });
       });
+      console.log("Screenshot captured, sending response...");
       res.setHeader("Content-Type", "image/png");
       return res.send(screenshot);
     }
