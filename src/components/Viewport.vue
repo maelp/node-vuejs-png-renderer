@@ -1,9 +1,9 @@
 <template>
   <div
-    id="main-viewport"
+    id="main-screenshot-viewport"
     :style="{
       width: `${width}px`,
-      height: `${height}px`,
+      ...(height > 0 ? { height: `${height}px` } : {}),
       padding: `${padding}px`,
       position: 'relative',
       overflow: 'hidden',
@@ -14,22 +14,19 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "Viewport",
-  props: {
-    width: {
-      type: Number,
-      default: 800,
-    },
-    height: {
-      type: Number,
-      default: 600,
-    },
-    padding: {
-      type: Number,
-      default: 0,
-    },
+<script setup>
+defineProps({
+  width: {
+    type: Number,
+    default: 800,
   },
-};
+  height: {
+    type: Number,
+    default: 0,
+  },
+  padding: {
+    type: Number,
+    default: 0,
+  },
+});
 </script>
