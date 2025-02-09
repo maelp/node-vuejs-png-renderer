@@ -44,3 +44,41 @@ open "http://localhost:3000/render?component=MyView&type=www&viewport-padding=10
 # or change to `type=png` to check the image
 open "http://localhost:3000/render?component=MyView&type=png&viewport-padding=10&viewport-background=transparent"
 ```
+
+## Example widget
+There is an example widget in `views/MyView.vue`
+
+```
+<template>
+  <div>
+    <div class="w-full inline-block">
+      <!-- This wrapper ensures tight bounds -->
+      <Card :title="`Welcome ${username}`">
+        <img src="/images/vite.svg" alt="Vue logo (from public)" class="logo" />
+
+        <p class="mb-4">You have {{ itemCount }} items in your cart</p>
+        <Button>Click me!</Button>
+      </Card>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import Card from "../components/Card.vue";
+import Button from "../components/Button.vue";
+
+defineProps({
+  username: {
+    type: String,
+    default: "Guest",
+  },
+  itemCount: {
+    type: Number,
+    default: 0,
+  },
+});
+</script>
+```
+
+and this is the sample render (with some padding)
+![screenshot](https://github.com/user-attachments/assets/8081184c-cf46-4f0c-a39e-a9317cd725cb)
