@@ -82,3 +82,6 @@ defineProps({
 
 and this is the sample PNG render (with some padding)
 ![screenshot](https://github.com/user-attachments/assets/8081184c-cf46-4f0c-a39e-a9317cd725cb)
+
+or as an image in a Discord message, to show graphs
+![U8S4HId_d](https://github.com/user-attachments/assets/805fd932-818c-4cfb-ad8b-3a454c3b8f63)
